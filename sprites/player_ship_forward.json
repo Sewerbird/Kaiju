@@ -1,0 +1,26 @@
+return { 
+  frames = {
+   {
+    frame = { x = 0, y = 0, w = 16, h = 16 },
+    rotated = false,
+    trimmed = false,
+    spriteSourceSize = { x = 0, y = 0, w = 16, h = 16 },
+    sourceSize = { w = 16, h = 16 },
+    duration = 100
+   },
+   {
+    frame = { x = 16, y = 0, w = 16, h = 16 },
+    rotated = false,
+    trimmed = false,
+    spriteSourceSize = { x = 0, y = 0, w = 16, h = 16 },
+    sourceSize = { w = 16, h = 16 },
+    duration = 100
+   }
+ },
+ meta = {
+  image = "sprites/player_ship_forward.png",
+  format = I8,
+  size = { w = 32, h = 16 },
+  scale = 1
+ }
+}
