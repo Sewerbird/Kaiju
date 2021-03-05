@@ -1,31 +1,15 @@
 --
+-- GLOBALS
+--
+PAUSED = false
+PAUSE_ON_HIT = false
+SHOW_COLLIDERS = false
+MUTE_MUSIC = false
+--
 -- UTILS
 --
-function max(a,b)
-  return math.max(a,b)
-end
-function min(a,b)
-  return math.min(a,b)
-end
-function clamp(a,min,max)
-  return math.max(min,math.min(a,max))
-end
-function wrap(a,min,max)
-  if a > max then
-    return a - max
-  elseif a < min then
-    return max + a
-  else
-    return a
-  end
-end
-function rand(min,max)
-  return love.math.random() * (max - min) + min
-end
-function read_hash_from_json(filename)
-  chunk, err = love.filesystem.load(filename)
-  return chunk()
-end
+require 'lib/ed_utils'
+inspect = require 'lib/inspect'
 --
 -- STATE
 --
@@ -33,32 +17,111 @@ function load_game()
   player = make_player()
   bullets = {}
   enemies = {}
+  background_stars = {}
+
+  for i = 1,100 do
+    background_stars[i] = make_background_star(rand(0,window_px),rand(0,window_px))
+  end
 end
 --
 -- CLASSES
 --
-function make_player()
+function make_animation_instance(animation_group, animation_source)
   return {
-    x = 3, y = 3, --position, in px, in cartesian coordinates
-    dx = 50, dy = 50, --velocity, in px/s, in cartesian coordinates
-    refire = 0, refire_max = 0.05, --gun rate meter
-    life = 10, life_max = 10, --life meter
-    invulnerability = 0, --invulnerability period, in seconds
-    animation = animations.player, animation_frame = 1, animation_rate = 0.1, animation_timer = 0, --current animation info
-    r = 8, --radius, in px
+    grp = animation_group,
+    src = animation_source,
+    animation = animations[animation_group][animation_source],
+    animation_frame = 1,
+    animation_rate = 0.1,
+    animation_timer = 0,
+    visible = true,
+    change = function(self, animation_source) --shift to other animation in animation_group
+      if animation_source == self.src then return end
+      self.src = animation_source
+      self.animation_frame = 1
+      self.animation_timer = 0
+      self.animation = animations[self.grp][self.src]
+    end,
+    show = function(self)
+      self.visible = true
+    end,
+    hide = function(self)
+      self.visible = false
+    end,
     update = function(self, dt)
       self.animation_timer = self.animation_timer + dt
       if self.animation_timer > self.animation_rate then
         self.animation_timer = self.animation_timer - self.animation_rate
         self.animation_frame = self.animation_frame + 1
-        if self.animation_frame > #self.animation then
-          self.animation_frame = 1
+        if self.animation_frame > #self.animation.frames then
+          if self.animation.loop then
+            self.animation_frame = 1
+          elseif self.animation.next then
+            self.animation = animations[animation_group][self.animation.next]
+            self.animation_frame = 1
+          else
+            self.animation_frame = self.animation_frame - 1
+          end
         end
       end
     end,
+    draw = function(self, dt)
+      love.graphics.draw(self.animation.img, self.animation.frames[self.animation_frame], 0, 0, 0,1,1,8,8)
+    end
+  }
+end
+
+function make_player()
+  return {
+    x = 3, y = 3, --position, in px, in cartesian coordinates
+    dx = 50, dy = 50, --velocity, in px/s, in cartesian coordinates
+    refire = 0, refire_max = 0.05, active_gun = 'left', --gun rate meter
+    life = 10, life_max = 10, --life meter
+    invulnerability = 0, --invulnerability period, in seconds
+    direction = 'forward', --direction of movement
+    ship_animation = make_animation_instance('kaiju_16px','forward'),
+    thrust_animation = make_animation_instance('kaiju_16px_thrust','forward'),
+    r = 8, --radius, in px
+
+    update = function(self, dt)
+      self.ship_animation:update(dt)
+      self.thrust_animation:update(dt)
+    end,
+
+    move_left = function(self)
+      if self.direction ~= left then
+        self.direction = 'left'
+        self.ship_animation:change('lean_left')
+        self.thrust_animation:change('left')
+      end
+    end,
+
+    move_right = function(self)
+      if self.direction ~= right then
+        self.direction = 'right'
+        self.ship_animation:change('lean_right')
+        self.thrust_animation:change('right')
+      end
+    end,
+
+    move_forward = function(self)
+      if self.direction ~= forward then
+        self.direction = 'forward'
+        self.ship_animation:change('forward')
+        self.thrust_animation:show()
+        self.thrust_animation:change('forward')
+      else
+        self.thrust_animation:hide()
+      end
+    end,
+    
     draw = function(self)
       love.graphics.push()
-      love.graphics.draw(sheets.main, animations.player[self.animation_frame], self.x, self.y, 0, 1, 1, 8, 8)
+      love.graphics.translate(self.x,self.y)
+      self.ship_animation:draw()
+      love.graphics.translate(0,16)
+      self.thrust_animation:draw()
+      if SHOW_COLLIDERS then love.graphics.circle('line',0,0,self.r) end
       love.graphics.pop()
     end
   }
@@ -68,10 +131,23 @@ function make_bullet(x,y)
   return {
     x = x, y = y, --position, in px
     dx = 0, dy = 200, --velocity, in px/s
-    r = 8, --radius, in px
+    r = 4, --radius, in px
     draw = function(self)
       love.graphics.push()
-      love.graphics.draw(sprites.bullet.img, sprites.bullet.quad, self.x, self.y,0,1,1,8,8)
+      love.graphics.draw(sprites.bullet.img, sprites.bullet.quad, self.x, self.y,0,1,1,4,4)
+      if SHOW_COLLIDERS then love.graphics.circle('line',self.x,self.y,self.r) end
+      love.graphics.pop()
+    end
+  }
+end
+
+function make_background_star(x,y)
+  return {
+    x = x, y = y, r = 0.1,
+    dx = 0, dy = rand(10,300),
+    draw = function(self)
+      love.graphics.push()
+      love.graphics.circle('line',self.x,self.y,self.r)
       love.graphics.pop()
     end
   }
@@ -86,6 +162,7 @@ function make_enemy(x,y,dx,dy)
     draw = function(self)
       love.graphics.push()
       love.graphics.draw(sprites.enemy.img, sprites.enemy.quad, self.x, self.y,0,1,1,8,8)
+      if SHOW_COLLIDERS then love.graphics.circle('line',self.x,self.y,self.r) end
       love.graphics.pop()
     end
   }
@@ -95,8 +172,7 @@ function make_title_scene()
   return {
     load = function(self)
       music:stop()
-      music.theme0:setLooping(true)
-      music.theme0:play()
+      music:play('theme0',true)
     end,
 
     update = function(self, dt)
@@ -116,8 +192,7 @@ function make_gameover_scene()
   return {
     load = function(self)
       music:stop()
-      music.theme1:setLooping(true)
-      music.theme1:play()
+      music:play('theme1',true)
     end,
 
     update = function(self, dt)
@@ -143,8 +218,7 @@ function make_corridor_scene()
   return {
     load = function(self)
       music:stop()
-      music.theme2:setLooping(true)
-      music.theme2:play()
+      music:play('theme2',true)
     end,
 
     update = function(self, dt)
@@ -160,16 +234,15 @@ function make_corridor_scene()
       end
       if love.keyboard.isDown("right") then
         player.x = player.x + player.dx * dt
-      end
-      if love.keyboard.isDown("left") then
+        player:move_right()
+      elseif love.keyboard.isDown("left") then
         player.x = player.x - player.dx * dt
+        player:move_left()
+      else
+        player:move_forward()
       end
       --Keep player in movement area
-      if CARTESIAN then
-        player.x = clamp(player.x, 0,window_px)
-      else
-        player.x = wrap(player.x, 0,window_px)
-      end
+      player.x = clamp(player.x, 0,window_px)
       player.y = clamp(player.y, 32,window_px)
       --Scale player appropriately
       --player.r = 8 * (player.y/window_px)
@@ -178,19 +251,18 @@ function make_corridor_scene()
       if love.keyboard.isDown("z") and player.refire == 0 then
         player.refire = player.refire_max
         sfx.laser1:play()
-        table.insert(bullets, make_bullet(player.x,player.y-8))
-      end
-      --Spawn a line of enemies in the center of thes creen
-      if love.keyboard.isDown("s") then
-        local x0 = love.math.random()*window_px
-        local w = love.math.random()*32
-        for i = 1, 10 do
-          table.insert(enemies, make_enemy(x0 + (i / 10 *  w), 0,0,-30))
+        local spread = player.direction == 'forward' and 7.5 or 5.5
+        if player.active_gun == 'left' then
+          player.active_gun = 'right'
+          table.insert(bullets, make_bullet(player.x+spread,player.y+2))
+        else
+          player.active_gun = 'left'
+          table.insert(bullets, make_bullet(player.x-spread,player.y+2))
         end
       end
-      --Spawn an enemy in center of screen
+      --Spawn an enemy at top of stream, aimed down
       if love.keyboard.isDown("c") then
-        table.insert(enemies, make_enemy(64, 0, rand(-40,40), rand(-20,40)))
+        table.insert(enemies, make_enemy(rand(0,window_px), 0, rand(-40,40), rand(0,-80)))
       end
       --Cleanup offscreen things
       for i, bullet in ipairs(bullets) do
@@ -210,16 +282,23 @@ function make_corridor_scene()
       end
       --Animate enemies
       for _, enemy in ipairs(enemies) do
-        enemy.x = clamp(enemy.x + enemy.dx * dt,0,window_px)
-        if enemy.x == 0 then
-          enemy.dx = -enemy.dx
+        enemy.x = enemy.x + enemy.dx * dt
+        if enemy.x <= 0 then
+          enemy.dx = abs(enemy.dx)
+          enemy.x = 0
         end
-        if enemy.x == window_px then
-          enemy.dx = -enemy.dx
+        if enemy.x >= window_px then
+          enemy.dx = -abs(enemy.dx)
+          enemy.x = window_px
         end
         enemy.y = enemy.y - enemy.dy * dt
         --Scale enemy appropriately
         --enemy.r = 8 * (enemy.y/window_px)
+      end
+      --Animate background stars
+      for _, star in ipairs(background_stars) do
+        star.x = wrap(star.x + star.dx * dt,0,window_px)
+        star.y = wrap(star.y + star.dy * dt,0,window_px)
       end
       --See if bullets are touching enemies
       for b_idx, bullet in ipairs(bullets) do
@@ -242,36 +321,31 @@ function make_corridor_scene()
       end
       --See if enemies are touching player
       for e_idx, enemy in ipairs(enemies) do
-        dx = math.sqrt(player.x*player.x - enemy.x*enemy.x)
-        dy = math.sqrt(player.y*player.y - enemy.y*enemy.y)
-        local er = enemy.r
-        local pr = player.r
-        if CARTESIAN == false then
-          er = er/2
-          pr = pr/2
-        end
         distance = math.sqrt(math.pow(player.x - enemy.x, 2) + math.pow(player.y - enemy.y, 2))
-        if distance < er + pr and player.invulnerability == 0 then
+        if distance < enemy.r + player.r and player.invulnerability == 0 then
           --Collide, causing player life loss and invulnerability
           player.life = player.life - 1
           player.invulnerability = 0.1
           enemy.color = 'red'
-          if PAUSE_ON_HIT then
-            PAUSED = true
-          end
+          if PAUSE_ON_HIT then PAUSED = true end
           if player.life == 0 then
             --Player death
             sfx.death1:play()
             current_scene = make_gameover_scene()
             current_scene:load()
+          else
+            --Player hurt
+            sfx.hurt1:play()
           end
         end
       end
     end,
 
     draw = function(self, dt)
-      --Draw Map
-      love.graphics.print('Hello World!', 32, 32)
+      --Draw Background Stars
+      for _, star in ipairs(background_stars) do
+        star:draw()
+      end
       --Draw Player
       player:draw()
       --Draw Bullets
@@ -293,60 +367,85 @@ function make_corridor_scene()
     end
   }
 end
-
-CARTESIAN = true
-PAUSED = false
-PAUSE_ON_HIT = false
-function project_circle(x,y,r)
-  local angle = math.pi * 2 * (x / window_px)
-  love.graphics.push()
-  love.graphics.translate(math.floor(x),0)
-  love.graphics.translate(0,math.floor(y))
-  love.graphics.draw(sheets.main, animations.player[2], 0, 0, 0, 1, 1, 8, 8)
-  love.graphics.circle('fill',0,0,1)
-  love.graphics.circle('line',0,0,r)
-  love.graphics.pop()
-end
 --
 -- LOVE
 --
 function love.load()
-  -- Pixel game, don't blur
+  -- Pixel game, don't blur in software. Should be played on a CRT amirite?
   love.graphics.setDefaultFilter('nearest', 'nearest', 1)
+
   -- Load Assets
   music = {
     theme0 = love.audio.newSource('music/theme0_v1.mp3','stream'),
     theme1 = love.audio.newSource('music/theme1_v1.mp3','stream'),
     theme2 = love.audio.newSource('music/theme2_v1.mp3','stream'),
+    play = function(self,track,do_loop)
+      if MUTE_MUSIC then return false end
+      music[track]:setLooping(do_loop)
+      music[track]:play()
+    end,
     stop = function(self)
       self.theme0:stop()
       self.theme1:stop()
       self.theme2:stop()
     end
   }
+
   sfx = {
     laser1 = love.audio.newSource('sfx/laser1_v1.wav','static'),
     explosion1 = love.audio.newSource('sfx/explosion1_v1.wav','static'),
     death1 = love.audio.newSource('sfx/death1_v1.wav','static'),
+    hurt1 = love.audio.newSource('sfx/hurt1_v1.wav','static'),
   }
-  --TODO Really Really Dumb temporary spritesheet code. Plz maek gud.
-  sheets = {}
-  animations = {}
-  sprites = {}
-  local spritesheet_info = read_hash_from_json("sprites/player_ship_forward.json")
-  sheets.main = love.graphics.newImage(spritesheet_info.meta.image)
-  animations.player = {}
-  for k, v in ipairs(spritesheet_info.frames) do
-    table.insert(animations.player, love.graphics.newQuad(v.frame.x,v.frame.y,v.frame.w,v.frame.h,sheets.main:getWidth(),sheets.main:getHeight()))
+
+  sprites = {
+    bullet = {
+      img = love.graphics.newImage("sprites/bullet_energy.png"),
+      quad = love.graphics.newQuad(0,0,8,8,8,8)
+    },
+    enemy = {
+      img = love.graphics.newImage("sprites/enemy_ship_forward.png"),
+      quad = love.graphics.newQuad(0,0,16,16,16,16)
+    }
+  }
+
+  animations = {
+    kaiju_16px = {
+      left = {},
+      lean_left = {},
+      forward = {},
+      lean_right = {},
+      right = {}
+    },
+    kaiju_16px_thrust = {
+      forward = { loop = true },
+      left = { loop = true },
+      right = { loop = true }
+    }
+  }
+  for animation_name, legend in pairs(animations) do
+    for k, _ in pairs(animations[animation_name]) do
+      local metadata = read_lua_from_json("sprites/"..animation_name.."_"..k..".json")
+      local animation = {
+        name = animation_name.."_"..k,
+        img = love.graphics.newImage('sprites/'..metadata.meta.image),
+        frames = {},
+        next = animations[animation_name][k].next and animations[animation_name][k].next or nil,
+        loop = animations[animation_name][k].loop and animations[animation_name][k].loop or nil,
+      }
+      for k, v in pairs(metadata.frames) do
+        local quad = love.graphics.newQuad(
+            v.frame.x, v.frame.y,
+            v.frame.w, v.frame.h,
+            animation.img:getWidth(),animation.img:getHeight()
+          )
+        animation.frames[tonumber(k)+1] = quad
+      end
+      animations[animation_name][k] = animation
+    end
   end
-  sprites.bullet = {
-    img = love.graphics.newImage("sprites/bullet_energy.png"),
-    quad = love.graphics.newQuad(0,0,16,16,16,16)
-  }
-  sprites.enemy = {
-    img = love.graphics.newImage("sprites/enemy_ship_forward.png"),
-    quad = love.graphics.newQuad(0,0,16,16,16,16)
-  }
+  print(inspect(animations))
+
   --Run Game
   load_game()
   current_scene = make_title_scene()
@@ -354,9 +453,6 @@ function love.load()
 end
 
 function love.update(dt)
-  if love.keyboard.isDown("r") then
-    CARTESIAN = not CARTESIAN
-  end
   if not PAUSED then
     current_scene:update(dt)
   else
@@ -367,6 +463,8 @@ function love.update(dt)
 end
 
 function love.draw()
+  --Letterbox
+  love.graphics.translate(pixel_scale_factor * (window_px*16/9/2-window_px/2),0)
   --Scale gameview for pixelated look
   love.graphics.scale(pixel_scale_factor, pixel_scale_factor)
   current_scene:draw()
