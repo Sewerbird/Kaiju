@@ -1,6 +1,6 @@
-pixel_scale_factor = 3
-window_px = 256
+PIXEL_SCALE_FACTOR = 3
+WINDOW_PX = 256
 function love.conf(t)
-  t.window.width = window_px * pixel_scale_factor * 16 / 9
-  t.window.height = window_px * pixel_scale_factor
+  t.window.width = WINDOW_PX * PIXEL_SCALE_FACTOR * 16 / 9
+  t.window.height = WINDOW_PX * PIXEL_SCALE_FACTOR
 end
