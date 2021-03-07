@@ -1,13 +1,7 @@
 PIXEL_SCALE_FACTOR = 3
+ASPECT_RATIO = 16/9
 WINDOW_PX = 256
-LETTERBOX = true
-SCALED = true
 function love.conf(t)
-  if LETTERBOX then
-    t.window.width = WINDOW_PX * PIXEL_SCALE_FACTOR * 16 / 9
-  else
-    t.window.width = WINDOW_PX * PIXEL_SCALE_FACTOR
-  end
+  t.window.width = WINDOW_PX * PIXEL_SCALE_FACTOR * ASPECT_RATIO
   t.window.height = WINDOW_PX * PIXEL_SCALE_FACTOR
-
 end

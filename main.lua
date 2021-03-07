@@ -47,10 +47,8 @@ function love.update(dt)
 end
 
 function love.draw()
-  if SCALED then
-    love.graphics.scale(PIXEL_SCALE_FACTOR, PIXEL_SCALE_FACTOR)
-  end
-  local offset = LETTERBOX and (WINDOW_PX*16/9/2-WINDOW_PX/2) or 0
+  love.graphics.scale(PIXEL_SCALE_FACTOR, PIXEL_SCALE_FACTOR)
+  local offset = WINDOW_PX * (ASPECT_RATIO - 1)/2
   love.graphics.translate(offset,0)
   love.graphics.setColor(1,1,1)
   current_scene:draw()
