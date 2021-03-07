@@ -5,7 +5,7 @@ PAUSED = false
 PAUSE_ON_HIT = false
 SHOW_COLLIDERS = false
 MUTE_MUSIC = false
-PRINT_ANIMATION_BANK = true
+PRINT_ANIMATION_BANK = false
 --
 -- UTILS
 --
@@ -47,11 +47,14 @@ function love.update(dt)
 end
 
 function love.draw()
-  --Letterbox
-  love.graphics.translate(PIXEL_SCALE_FACTOR * (WINDOW_PX*16/9/2-WINDOW_PX/2),0)
-  --Scale gameview for pixelated look
-  love.graphics.scale(PIXEL_SCALE_FACTOR, PIXEL_SCALE_FACTOR)
+  if SCALED then
+    love.graphics.scale(PIXEL_SCALE_FACTOR, PIXEL_SCALE_FACTOR)
+  end
+  local offset = LETTERBOX and (WINDOW_PX*16/9/2-WINDOW_PX/2) or 0
+  love.graphics.translate(offset,0)
+  love.graphics.setColor(1,1,1)
   current_scene:draw()
-  --Draw Window Border
-  love.graphics.rectangle('line',0,0,WINDOW_PX,WINDOW_PX)
+  love.graphics.setColor(0.03,0.03,0.04)
+  love.graphics.rectangle('fill',-offset,0,offset,WINDOW_PX)
+  love.graphics.rectangle('fill',WINDOW_PX,0,offset,WINDOW_PX)
 end

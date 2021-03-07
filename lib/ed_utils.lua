@@ -48,6 +48,5 @@ function read_lua_from_json(filename)
   --TODO Use a proper parser for this
   local L="return "..(contents:gsub('("[^"]-"):','[%1]='))
   local T=loadstring(L)()
-  print(T)
   return T
 end
