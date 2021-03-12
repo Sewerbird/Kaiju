@@ -13,6 +13,20 @@ local Player = function ()
     ship_animation = Animation('kaiju_16px','forward',0.1),
     thrust_animation = Animation('kaiju_16px_thrust','forward',0.03),
     r = 8, --radius, in px
+    ledger = {
+      cash = { balance = 0 },
+      stocks = {
+        { location = 'Isikur', company = 'Hydrocorp', avg_buy_cost = 100, shares = 0 }
+      },
+    },
+    shop = {
+      Chips = { buy_price = 1, sell_price = 10, amount = 100, max_amount = 128 },
+      Warez = { buy_price = 10, sell_price = 1, amount = 100, max_amount = 128 },
+      Art = { buy_price = 1, sell_price = 90, amount = 100, max_amount = 128 },
+      Tools = { buy_price = 90, sell_price = 1, amount = 100, max_amount = 128 },
+      Guns = { buy_price = 100, sell_price = 1, amount = 100, max_amount = 128 },
+      Energy = { buy_price = 1, sell_price = 100, amount = 100, max_amount = 128 },
+    },
 
     update = function(self, dt)
       -- Update gun cooloff
@@ -63,6 +77,7 @@ local Player = function ()
       if self.direction ~= 'forward' then
         self.direction = 'forward'
         self.ship_animation:change('forward')
+        self.thrust_animation:change('forward')
       end
     end,
     

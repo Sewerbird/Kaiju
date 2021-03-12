@@ -25,6 +25,7 @@ local Animation = function (animation_group, animation_source, animation_rate)
     end,
 
     update = function(self, dt)
+      if animation_rate < 0 then self.animation.loop = false end
       self.animation_timer = self.animation_timer + dt
       if self.animation_timer > self.animation_rate then
         self.animation_timer = self.animation_timer - self.animation_rate

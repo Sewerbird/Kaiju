@@ -6,6 +6,14 @@ function min(a,b)
   return math.min(a,b)
 end
 
+function flr(a)
+  return math.floor(a)
+end
+
+function ceil(a)
+  return math.ceil(a)
+end
+
 function mod(a,b)
   local q = math.floor(a/b)
   return a - (q*b)

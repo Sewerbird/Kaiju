@@ -10,6 +10,9 @@ local animations = {
     forward = { loop = true },
     left = { loop = true },
     right = { loop = true }
+  },
+  star_8px = {
+    blue = { loop = true }
   }
 }
 for animation_name, legend in pairs(animations) do

@@ -9,6 +9,8 @@ local CorridorScene = function ()
       self.bullets = {}
       self.enemies = {}
       self.background_stars = {}
+      player.x = WINDOW_PX/2
+      player.y = WINDOW_PX*3/4
       for i = 1,100 do
         self.background_stars[i] = BackgroundStar(rand(0,WINDOW_PX),rand(0,WINDOW_PX))
       end
@@ -36,7 +38,7 @@ local CorridorScene = function ()
       end
       --Keep player in movement area
       player.x = clamp(player.x, 0,WINDOW_PX)
-      player.y = clamp(player.y, 32,WINDOW_PX)
+      player.y = clamp(player.y, 32,WINDOW_PX-16)
       --Handle player gun
       if love.keyboard.isDown("z") then
         local bullet = player:shoot()
@@ -50,6 +52,13 @@ local CorridorScene = function ()
       --Spawn an enemy at top of stream, aimed down
       if love.keyboard.isDown("c") then
         table.insert(self.enemies, Enemy(rand(0,WINDOW_PX), 0, rand(-40,40), rand(0,-80)))
+      end
+      --Force finish stage
+      if love.keyboard.isDown('n') then
+        planets['Isikur']:randomize_shop_supplies()
+        local OrbitScene = require('src/orbit_scene')
+        current_scene = OrbitScene()
+        current_scene:load('Isikur')
       end
       --Cleanup offscreen things
       for i, bullet in ipairs(self.bullets) do
@@ -84,6 +93,7 @@ local CorridorScene = function ()
       for _, star in ipairs(self.background_stars) do
         star.x = wrap(star.x + star.dx * dt,0,WINDOW_PX)
         star.y = wrap(star.y + star.dy * dt,0,WINDOW_PX)
+        star:update(dt)
       end
       --See if bullets are touching enemies
       for b_idx, bullet in ipairs(self.bullets) do
@@ -130,7 +140,10 @@ local CorridorScene = function ()
     draw = function(self, dt)
       --Draw Background Stars
       for _, star in ipairs(self.background_stars) do
+        love.graphics.push()
+        love.graphics.translate(star.x, star.y)
         star:draw()
+        love.graphics.pop()
       end
       --Draw Player
       player:draw()
@@ -149,6 +162,7 @@ local CorridorScene = function ()
         love.graphics.setColor(1,1,1)
       end
       --Draw player life meter
+      love.graphics.setFont(Font)
       love.graphics.print("Life: " .. player.life, 80,100)
     end
   }
