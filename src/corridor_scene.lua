@@ -3,12 +3,14 @@ local Bullet = require('src/bullet')
 local BackgroundStar = require('src/background_star')
 local Enemy = require('src/enemy')
 
-local CorridorScene = function ()
+local CorridorScene = function (configuration)
   return {
     load = function(self)
       self.bullets = {}
       self.enemies = {}
       self.background_stars = {}
+      self.exit_system = configuration.exit --System name this corridor exits into
+      self.entry_system = configuration.entry --System name this corridor began with
       player.x = WINDOW_PX/2
       player.y = WINDOW_PX*3/4
       for i = 1,100 do
@@ -46,6 +48,7 @@ local CorridorScene = function ()
           bullet.x = bullet.x + player.x
           bullet.y = bullet.y + player.y
           Sfx.laser1:play()
+          player.ledger.cash.balance = player.ledger.cash.balance - 1
           table.insert(self.bullets, bullet)
         end
       end
@@ -55,10 +58,10 @@ local CorridorScene = function ()
       end
       --Force finish stage
       if love.keyboard.isDown('n') then
-        planets['Isikur']:randomize_shop_supplies()
+        planets[self.exit_system]:randomize_shop_supplies()
         local OrbitScene = require('src/orbit_scene')
         current_scene = OrbitScene()
-        current_scene:load('Isikur')
+        current_scene:load(self.exit_system)
       end
       --Cleanup offscreen things
       for i, bullet in ipairs(self.bullets) do
@@ -164,6 +167,14 @@ local CorridorScene = function ()
       --Draw player life meter
       love.graphics.setFont(Font)
       love.graphics.print("Life: " .. player.life, 80,100)
+      --Draw Wallet
+      love.graphics.setFont(Font)
+      love.graphics.push()
+      local money_string = "$"..flr(player.ledger.cash.balance)
+      love.graphics.setColor(0.3,0.9,0.2)
+      love.graphics.translate(WINDOW_PX - Font:getWidth(money_string),0)
+      love.graphics.print(money_string)
+      love.graphics.pop()
     end
   }
 end

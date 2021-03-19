@@ -4,7 +4,7 @@ local Bullet = require('src/bullet')
 local Player = function ()
   return {
     x = 3, y = 3, --position, in px, in cartesian coordinates
-    dx = 50, dy = 50, --velocity, in px/s, in cartesian coordinates
+    dx = 100, dy = 100, --velocity, in px/s, in cartesian coordinates
     refire = 0, refire_max = 0.05, active_gun = 'left', --gun rate meter
     heat = 0, heat_max = 1.0, cool_rate = 2.0,
     life = 10, life_max = 10, --life meter
@@ -14,7 +14,7 @@ local Player = function ()
     thrust_animation = Animation('kaiju_16px_thrust','forward',0.03),
     r = 8, --radius, in px
     ledger = {
-      cash = { balance = 0 },
+      cash = { balance = 1000 },
       stocks = {
         { location = 'Isikur', company = 'Hydrocorp', avg_buy_cost = 100, shares = 0 }
       },

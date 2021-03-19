@@ -8,7 +8,7 @@ local TitleScene = function ()
     update = function(self, dt)
       if love.keyboard.isDown("return") then
         local CorridorScene = require('src/corridor_scene')
-        current_scene = CorridorScene()
+        current_scene = CorridorScene({entry = 'Aylon', exit = 'Isikur'})
         current_scene:load()
       end
     end,

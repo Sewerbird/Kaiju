@@ -16,7 +16,11 @@ function love.load()
   current_scene = require('src/title_scene')()
   player = require('src/player')()
   planets = {
-    Isikur = require('planets/isikur')
+    Isikur = require('planets/isikur'),
+    Hydromeda = require('planets/hydromeda'),
+    Aylon = require('planets/aylon'),
+    Penteuch = require('planets/penteuch'),
+    Kyomai = require('planets/kyomai'),
   }
 
   --Start
@@ -45,4 +49,10 @@ function love.draw()
   love.graphics.setColor(0.03, 0.03, 0.04)
   love.graphics.rectangle('fill', -offset, 0, offset, WINDOW_PX)
   love.graphics.rectangle('fill', WINDOW_PX, 0, offset, WINDOW_PX)
+end
+
+function love.keypressed(key)
+  if current_scene.input then
+    current_scene:input(key)
+  end
 end
