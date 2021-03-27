@@ -5,7 +5,7 @@ local BackgroundStar = function (x,y,dx,dy)
   dy = dy or 0
   return {
     x = x, y = y, r = rand(0.1,0.2),
-    dx = 0, dy = rand(10,30),
+    dx = 0, dy = rand(70,100),
     twinkle_animation = Animation('star_8px','blue',rand(0.1,0.15)),
     update = function(self, dt)
       self.twinkle_animation:update(dt)

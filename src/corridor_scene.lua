@@ -60,8 +60,7 @@ local CorridorScene = function (configuration)
       if love.keyboard.isDown('n') then
         planets[self.exit_system]:randomize_shop_supplies()
         local OrbitScene = require('src/orbit_scene')
-        current_scene = OrbitScene()
-        current_scene:load(self.exit_system)
+        current_scene = OrbitScene(self.exit_system)
       end
       --Cleanup offscreen things
       for i, bullet in ipairs(self.bullets) do

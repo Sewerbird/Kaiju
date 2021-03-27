@@ -1,290 +1,48 @@
-local DealMenuOption = function(trade_good, planet)
-  return {
-    name = trade_good, action = function(self, cmd)
-      local tgt_amount = love.keyboard.isDown('z') and 5 or 1
-      for i = 1,tgt_amount do
-        if cmd == 'left' then
-          if planets[planet].shop[trade_good].amount > 0 then
-            if player.ledger.cash.balance >= planets[planet].shop[trade_good].sell_price then
-              player.shop[trade_good].amount = player.shop[trade_good].amount + 1
-              player.ledger.cash.balance = player.ledger.cash.balance - planets[planet].shop[trade_good].sell_price
-              planets[planet].shop[trade_good].amount = planets[planet].shop[trade_good].amount - 1
-              self.notification = "What a deal!"
-              planets[planet]:recalculate_shop()
-            else
-              self.notification = "Oops, can't afford "..trade_good
-            end
-          else
-            self.notification = "They don't have any "..trade_good.." to sell"
-          end
-        elseif cmd == 'right' then
-          if planets[planet].shop[trade_good].max_amount > planets[planet].shop[trade_good].amount then
-            if player.shop[trade_good].amount > 0 then
-              player.shop[trade_good].amount = player.shop[trade_good].amount - 1
-              player.ledger.cash.balance = player.ledger.cash.balance + planets[planet].shop[trade_good].buy_price
-              planets[planet].shop[trade_good].amount = planets[planet].shop[trade_good].amount + 1
-              planets[planet]:recalculate_shop()
-              self.notification = "Glad I sold that!"
-            else
-              self.notification = "I don't have any "..trade_good.." to sell"
-            end
-          else
-            self.notification = "They don't want any more "..trade_good
-          end
-        end
-      end
-    end
-  }
-end
+local Scene = require('src/scene')
+local DealInterface = require('src/orbit_deal_interface')
+local ExitInterface = require('src/orbit_exit_interface')
+local ActionInterface = require('src/orbit_action_interface')
 
-local DealMenu = function(planet)
-  return {
-    planet = planet,
-    title = "Ship  Buy   Good   Sell  Dock",
-    cursor = {index = 1, rate = 0.2, timer = 0},
-    options = {
-      DealMenuOption('Chips', planet),
-      DealMenuOption('Warez', planet),
-      DealMenuOption('Art', planet),
-      DealMenuOption('Tools', planet),
-      DealMenuOption('Guns', planet),
-      DealMenuOption('Energy', planet)
-    },
-    draw = function(self)
-      love.graphics.setFont(Font)
-      love.graphics.push()
-      love.graphics.translate(0,32)
-      local center_offset = (WINDOW_PX/2)-(Font:getWidth(self.title)/2)
-      love.graphics.translate(center_offset,16)
-      love.graphics.print(self.title)
-      love.graphics.translate(-center_offset,0)
-      for idx, option in ipairs(self.options) do
-        local center_offset = (WINDOW_PX/2)
-        love.graphics.translate(center_offset,16)
-        --Draw Resource
-        if self.cursor.index == idx then
-          love.graphics.setColor(0.9,0.9,0.6)
-        else
-          love.graphics.setColor(0.7,0.7,0.7)
+local OrbitScene = function(planet)
+  local me = Scene(
+    {
+      draw = function(self)
+        --Draw Stars
+        for _, star in ipairs(self.background_stars) do
+          love.graphics.push()
+          love.graphics.translate(star.x,star.y)
+          star:draw(dt)
+          love.graphics.pop()
         end
+        --Draw Wallet
+        love.graphics.setFont(Font)
         love.graphics.push()
-        love.graphics.translate(-(Font:getWidth(option.name)/2),0)
-        love.graphics.print(option.name, 0, 0)
-        --Draw Cursor
-        if self.cursor.index == idx then
-          love.graphics.setColor(0.9,0.9,0.3)
-          love.graphics.rectangle('line',-2,0,2+Font:getWidth(option.name),Font:getHeight())
-          love.graphics.setColor(1,1,1)
-          love.graphics.draw(sprites.left_arrow_8px.img, sprites.left_arrow_8px.quad, -2-9,2)
-          love.graphics.draw(sprites.right_arrow_8px.img, sprites.right_arrow_8px.quad, Font:getWidth(option.name)+1,2)
-        end
+        local money_string = "$"..flr(player.ledger.cash.balance)
+        love.graphics.setColor(0.3,0.9,0.2)
+        love.graphics.translate(WINDOW_PX - Font:getWidth(money_string),0)
+        love.graphics.print(money_string)
         love.graphics.pop()
-        local buy_string = "$"..flr(planets[planet].shop[option.name].buy_price)
-        local sell_string = "$"..flr(planets[planet].shop[option.name].sell_price)
-        --Draw Sell Price
-        love.graphics.push()
-        love.graphics.translate(-30-Font:getWidth(sell_string),0)
-        love.graphics.print(sell_string)
-        love.graphics.pop()
-        --Draw Buy Price
-        love.graphics.push()
-        love.graphics.translate(30,0)
-        love.graphics.print(buy_string)
-        love.graphics.pop()
-        --Draw Ship Stock
-        local ship_stock_string = player.shop[option.name].amount
-        love.graphics.push()
-        love.graphics.translate(-70-Font:getWidth(ship_stock_string),0)
-        love.graphics.print(ship_stock_string)
-        love.graphics.pop()
-        --Draw Dock Stock
-        local dock_stock_string = planets[planet].shop[option.name].amount
-        love.graphics.push()
-        love.graphics.translate(70,0)
-        love.graphics.print(dock_stock_string)
-        love.graphics.pop()
-        love.graphics.translate(-center_offset,0)
-      end
-      love.graphics.pop()
-      if self.notification ~= nil then
-        love.graphics.setColor(1,1,1)
-        love.graphics.print(self.notification,WINDOW_PX/2-Font:getWidth(self.notification)/2,WINDOW_PX-16)
-      end
-    end
-  }
-end
+      end,
 
-local ExitMenuOption = function(planet_name, options)
-  return {
-    name = planet_name, action = function(self, cmd)
-      if cmd == 'z' then
-        self.notification = "Going to " .. planet_name
-        local CorridorScene = require('src/corridor_scene')
-        current_scene = CorridorScene({exit = planet_name})
-        current_scene:load()
+      update = function(self, dt)
+        for _,star in ipairs(self.background_stars) do
+          star:update(dt)
+        end
       end
-    end
-  }
-end
+    }
+  )
 
-local ExitMenu = function(planet)
-  local options = {}
-  for i, neighbor in ipairs(planets[planet].neighbors) do
-    table.insert(options, ExitMenuOption(neighbor))
-  end
-  return {
-    planet = planet,
-    cursor = {index = 1, rate = 0.2, timer = 0},
-    options = options,
-    draw = function(self)
-      love.graphics.setFont(Font)
-      love.graphics.push()
-      love.graphics.print("Select Next Destination:")
-      for idx, option in ipairs(self.options) do
-        love.graphics.translate(0,16)
-        if self.cursor.index == idx then
-          love.graphics.setColor(0.9,0.9,0.6)
-        else
-          love.graphics.setColor(0.7,0.7,0.7)
-        end
-        love.graphics.print(option.name)
-      end
-      love.graphics.pop()
-      if self.notification ~= nil then
-        love.graphics.setColor(1,1,1)
-        love.graphics.print(self.notification,WINDOW_PX/2-Font:getWidth(self.notification)/2,WINDOW_PX-16)
-      end
-    end
-  }
-end
+  me.placename = planets[planet].placename
+  me.background_stars = planets[planet].background_stars
+  me.deal_menu = DealInterface(me.placename)
+  me.exit_menu = ExitInterface(me.placename)
+  me.action_menu = ActionInterface(me.placename)
+  me.interfaces:push(me.action_menu)
 
-local ActionMenu = function(title)
-  return {
-    title = title,
-    cursor = {index = 1, rate = 0.2, timer = 0},
-    options = {
-      {
-        name = 'Deal', action = function(self, cmd)
-          current_scene.active_menu = 'deal_menu'
-        end
-      },
-      {
-        name = 'Dock', action = function(self, cmd)
-          self.notification = 'Dock temporarily closed'
-        end
-      },
-      {
-        name = 'Talk', action = function(self, cmd)
-          self.notification = 'No one is answering...'
-        end
-      },
-      {
-        name = 'Scan', action = function(self, cmd)
-          self.notification = 'No targets found...'
-        end
-      },
-      {
-        name = 'Info', action = function(self, cmd)
-          self.notification = "Welcome to "..self.title
-        end
-      },
-      {
-        name = 'Exit', action = function(self, cmd)
-          current_scene.active_menu = 'exit_menu'
-        end
-      },
-    },
-    draw = function(self)
-      love.graphics.setFont(Font)
-      love.graphics.push()
-      love.graphics.translate(8,0)
-      love.graphics.setColor(1,1,1)
-      love.graphics.print(self.title)
-      for idx, option in ipairs(self.options) do
-        love.graphics.translate(0,16)
-        if self.cursor.index == idx then
-          love.graphics.setColor(0.9,0.9,0.6)
-        else
-          love.graphics.setColor(0.7,0.7,0.7)
-        end
-        love.graphics.print(option.name)
-      end
-      love.graphics.pop()
-      if self.notification ~= nil then
-        love.graphics.setColor(1,1,1)
-        love.graphics.print(self.notification,WINDOW_PX/2-Font:getWidth(self.notification)/2,WINDOW_PX-16)
-      end
-    end
-  }
-end
+  Music:stop()
+  Music:play('theme0',true)
 
-local OrbitScene = function ()
-  return {
-    load = function(self, planet)
-      self.placename = planets[planet].placename
-      self.background_stars = planets[planet].background_stars
-      self.deal_menu = DealMenu(self.placename)
-      self.exit_menu = ExitMenu(self.placename)
-      self.action_menu = ActionMenu(self.placename)
-
-      self.active_menu = 'action_menu'
-      Music:stop()
-      Music:play('theme0',true)
-    end,
-
-    update = function(self, dt)
-      for _, star in ipairs(self.background_stars) do
-        star:update(dt)
-      end
-    end,
-
-    input = function(self, cmd)
-      local menu = self[self.active_menu]
-      if cmd == 'down' then
-        menu.notification = nil
-        menu.cursor.index = clamp(menu.cursor.index + 1, 1, #menu.options)
-      end
-      if cmd == 'up' then
-        menu.notification = nil
-        menu.cursor.index = clamp(menu.cursor.index - 1, 1, #menu.options)
-      end
-      if cmd == 'x' then
-        self.active_menu = 'action_menu'
-      end
-      if menu.options[menu.cursor.index].action then
-        if cmd == 'left' then
-          menu.options[menu.cursor.index].action(menu,'left')
-        elseif cmd == 'right' then
-          menu.options[menu.cursor.index].action(menu,'right')
-        elseif cmd == 'z' then
-          menu.options[menu.cursor.index].action(menu,'z')
-        end
-      end
-    end,
-
-    draw = function(self)
-      love.graphics.push()
-      love.graphics.translate(0,0)
-      --Draw Stars
-      for _, star in ipairs(self.background_stars) do
-        love.graphics.push()
-        love.graphics.translate(star.x,star.y)
-        star:draw(dt)
-        love.graphics.pop()
-      end
-      --Draw Wallet
-      love.graphics.setFont(Font)
-      love.graphics.push()
-      local money_string = "$"..flr(player.ledger.cash.balance)
-      love.graphics.setColor(0.3,0.9,0.2)
-      love.graphics.translate(WINDOW_PX - Font:getWidth(money_string),0)
-      love.graphics.print(money_string)
-      love.graphics.pop()
-      --Draw Menu
-      self[self.active_menu]:draw()
-      love.graphics.pop()
-    end,
-  }
+  return me
 end
 
 return OrbitScene

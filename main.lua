@@ -10,7 +10,7 @@ function love.load()
   Sfx = require('src/sfx')
   Sprites = require('src/sprites')
   Animations = require('src/animations')
-  Font = love.graphics.newFont('sprites/tiny.ttf')
+  Font = love.graphics.newFont('sprites/small_pixel.ttf',8,'mono')
 
   -- Global Gamestate
   current_scene = require('src/title_scene')()
